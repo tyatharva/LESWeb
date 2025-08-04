@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+        <meta name="time-display" content="UTC" />
+        <title>LESNet Viewer</title>
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        />
+        <link
+            rel="stylesheet"
+            href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css"
+        />
+        <link
+            rel="stylesheet"
+            href="{{ url_for('static', filename='css/style.css') }}"
+        />
+    </head>
+    <body>
+        <div class="container">
+            <div class="sidebar">
+                <h1>LESNet Viewer</h1>
+                <p>ML-Based Lake-Effect Precipitation Prediction</p>
+
+                <div class="control-panel">
+                    <h2>Run Model</h2>
+                    <form id="model-form">
+                        <div class="form-group">
+                            <label for="lake-select">Lake:</label>
+                            <select id="lake-select" name="lake" required>
+                                {% for lake in lakes %}
+                                <option value="{{ lake.id }}">
+                                    {{ lake.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="date-input">Date & Time (UTC):</label>
+                            <input
+                                type="text"
+                                id="date-input"
+                                name="date"
+                                placeholder="Select lake first"
+                                autocomplete="off"
+                                required
+                                disabled
+                            />
+                        </div>
+
+                        <div class="form-group">
+                            <button type="submit" id="run-button">
+                                Run Model
+                            </button>
+                        </div>
+                    </form>
+
+                    <div id="loading-indicator" class="hidden">
+                        <div class="spinner"></div>
+                        <p>Running model... This may take a few minutes.</p>
+                        <div id="queue-status" class="hidden">
+                            <p class="queue-info">
+                                <strong
+                                    >Position in queue:
+                                    <span id="queue-position">0</span></strong
+                                >
+                                <br />
+                                <small
+                                    >Only 1 model run can process at a
+                                    time</small
+                                >
+                                <br />
+                                <small
+                                    >Your request will be processed
+                                    automatically</small
+                                >
+                            </p>
+                        </div>
+                        <div
+                            class="progress-container hidden"
+                            id="progress-container"
+                        >
+                            <div class="progress-label">
+                                Status:
+                                <span id="progress-status">Initializing</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="error-message" class="hidden">
+                        <p class="error">An error occurred.</p>
+                    </div>
+                </div>
+
+                <div class="data-panel">
+                    <h2>Available Data</h2>
+                    <div id="data-list">
+                        <p>Loading available datasets...</p>
+                    </div>
+                </div>
+
+                <div class="layer-panel hidden" id="layer-control">
+                    <h2>Panel Controls</h2>
+                    <div class="panel-controls">
+                        <div class="form-group">
+                            <label for="panel1-select">Panel 1:</label>
+                            <select id="panel1-select" class="panel-select">
+                                <!-- Will be populated dynamically -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="panel2-select">Panel 2:</label>
+                            <select id="panel2-select" class="panel-select">
+                                <!-- Will be populated dynamically -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="panel3-select">Panel 3:</label>
+                            <select id="panel3-select" class="panel-select">
+                                <!-- Will be populated dynamically -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="panel4-select">Panel 4:</label>
+                            <select id="panel4-select" class="panel-select">
+                                <!-- Will be populated dynamically -->
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="opacity-slider">Opacity:</label>
+                        <div style="display: flex; align-items: center">
+                            <input
+                                type="range"
+                                id="opacity-slider"
+                                min="0"
+                                max="1"
+                                step="0.05"
+                                value="0.8"
+                                style="flex: 1"
+                            />
+                            <span
+                                id="opacity-value"
+                                style="margin-left: 10px; min-width: 40px"
+                                >70%</span
+                            >
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <button
+                        type="button"
+                        id="credits-button"
+                        class="credits-btn"
+                    >
+                        Show Credits
+                    </button>
+                </div>
+                <div id="credits-popup" class="credits-popup hidden">
+                    <div class="credits-content">
+                        <h3>Credits</h3>
+                        <p>Created by Atharva Tyagi</p>
+                        <ul>
+                            <li>
+                                <a
+                                    href="https://github.com/tyatharva/LESNet"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    Model code
+                                </a>
+                            </li>
+                            <li>
+                                <a
+                                    href="https://huggingface.co/datasets/tyatharva/LESNet"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    Dataset
+                                </a>
+                            </li>
+                            <li>
+                                <a
+                                    href="https://github.com/blaylockbk/Carpenter_Workshop/blob/main/paint/standard2_colormaps.ipynb"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                >
+                                    Colormaps
+                                </a>
+                            </li>
+                        </ul>
+                        <p>
+                            Questions?
+                            <a href="mailto:tyagiatharva11@gmail.com"
+                                >tyagiatharva11@gmail.com</a
+                            >
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="map-container">
+                <div id="map-grid" class="utc-time-display">
+                    <div class="map-panel">
+                        <div class="panel-header">Panel 1</div>
+                        <div id="map1" class="map"></div>
+                        <div class="value-display" id="value-display1"></div>
+                    </div>
+                    <div class="map-panel">
+                        <div class="panel-header">Panel 2</div>
+                        <div id="map2" class="map"></div>
+                        <div class="value-display" id="value-display2"></div>
+                    </div>
+                    <div class="map-panel">
+                        <div class="panel-header">Panel 3</div>
+                        <div id="map3" class="map"></div>
+                        <div class="value-display" id="value-display3"></div>
+                    </div>
+                    <div class="map-panel">
+                        <div class="panel-header">Panel 4</div>
+                        <div id="map4" class="map"></div>
+                        <div class="value-display" id="value-display4"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/georaster"></script>
+        <script src="https://unpkg.com/georaster-layer-for-leaflet"></script>
+        <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    </body>
+</html>
